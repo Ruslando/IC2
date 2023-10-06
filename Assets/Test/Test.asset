@@ -30,22 +30,7 @@ MonoBehaviour:
   enabled:
     overrideState: 1
     value: 1
-  optimizationOption:
-    overrideState: 0
-    value: 0
-  reprojectionMode:
-    overrideState: 0
-    value: 0
-  simulatedFramerate:
-    overrideState: 0
-    value: 1
-  extrapolatedFramerate:
-    overrideState: 0
-    value: 120
-  stepSizeFactor:
-    overrideState: 0
-    value: 1
-  maximumStepSize:
+  holdFrame:
     overrideState: 0
     value: 1
 --- !u!114 &114188666973789970
@@ -64,24 +49,9 @@ MonoBehaviour:
   enabled:
     overrideState: 1
     value: 1
-  optimizationOption:
+  holdFrame:
     overrideState: 0
     value: 0
-  reprojectionMode:
-    overrideState: 0
-    value: 0
-  simulatedFramerate:
-    overrideState: 0
-    value: 1
-  extrapolatedFramerate:
-    overrideState: 0
-    value: 120
-  stepSizeFactor:
-    overrideState: 0
-    value: 1
-  maximumStepSize:
-    overrideState: 0
-    value: 1
 --- !u!114 &114700860791437488
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -98,21 +68,6 @@ MonoBehaviour:
   enabled:
     overrideState: 1
     value: 1
-  optimizationOption:
+  holdFrame:
     overrideState: 0
     value: 0
-  reprojectionMode:
-    overrideState: 1
-    value: 3
-  simulatedFramerate:
-    overrideState: 0
-    value: 10
-  extrapolatedFramerate:
-    overrideState: 0
-    value: 120
-  stepSizeFactor:
-    overrideState: 0
-    value: 1
-  maximumStepSize:
-    overrideState: 0
-    value: 1
