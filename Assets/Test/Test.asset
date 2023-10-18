@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Test
   m_EditorClassIdentifier: 
   settings:
-  - {fileID: 114012981405782066}
+  - {fileID: 114894895748643510}
 --- !u!114 &114012981405782066
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -31,6 +31,9 @@ MonoBehaviour:
     overrideState: 1
     value: 1
   holdFrame:
+    overrideState: 0
+    value: 1
+  captureFrame:
     overrideState: 0
     value: 1
 --- !u!114 &114188666973789970
@@ -52,6 +55,9 @@ MonoBehaviour:
   holdFrame:
     overrideState: 0
     value: 0
+  captureFrame:
+    overrideState: 0
+    value: 0
 --- !u!114 &114700860791437488
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -71,3 +77,28 @@ MonoBehaviour:
   holdFrame:
     overrideState: 0
     value: 0
+  captureFrame:
+    overrideState: 0
+    value: 0
+--- !u!114 &114894895748643510
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3ac55b33c4c4384f930ece0e73095d9, type: 3}
+  m_Name: Reprojection
+  m_EditorClassIdentifier: 
+  active: 1
+  enabled:
+    overrideState: 1
+    value: 1
+  holdFrame:
+    overrideState: 0
+    value: 1
+  captureFrame:
+    overrideState: 0
+    value: 1

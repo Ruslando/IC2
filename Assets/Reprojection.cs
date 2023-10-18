@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.IO;
 //using UnityEngine.Rendering;
 using UnityEngine.Rendering.PostProcessing;
 
@@ -10,6 +11,7 @@ public sealed class Reprojection : PostProcessEffectSettings
 {
     //public FloatParameter exampleFloat   = new FloatParameter { value = 1 };
     public IntParameter holdFrame = new IntParameter { value = 0 };
+    public IntParameter captureFrame = new IntParameter { value = 0 };
 }
 
 #endregion
@@ -41,13 +43,21 @@ sealed class ReprojectionRenderer : PostProcessEffectRenderer<Reprojection>
     {
         Initialize,
         Timewarp,
+        Timewarp1,
+        Timewarp2,
         Display,
     }
 
     RenderTexture _previousColorTexture;
     RenderTexture _previousMotionDepthTexture;
 
+    Vector3 previousCameraPosition;
+
     int _previousHoldFrame;
+    int _previousCaptureFrame;
+
+    bool _holdFrame;
+    bool _captureFrame;
 
     UnityEngine.Rendering.RenderTargetIdentifier[] _mrt = new UnityEngine.Rendering.RenderTargetIdentifier[2];  // Main Render Targets
 
@@ -62,6 +72,18 @@ sealed class ReprojectionRenderer : PostProcessEffectRenderer<Reprojection>
         }
 
         _previousHoldFrame = settings.holdFrame;
+        return false;
+    }
+
+    public bool CheckCaptureFrame()
+    {
+        if(_previousCaptureFrame == 0 && settings.captureFrame == 1)
+        {
+            _previousCaptureFrame = settings.captureFrame;
+            return true;
+        }
+
+        _previousCaptureFrame = settings.captureFrame;
         return false;
     }
 
@@ -94,11 +116,11 @@ sealed class ReprojectionRenderer : PostProcessEffectRenderer<Reprojection>
         // Set the shader uniforms.
         var sheet = context.propertySheets.Get(Shader.Find("Hidden/Reprojection"));
 
-        bool holdFrame = CheckHoldFrame();
+        _holdFrame = CheckHoldFrame();
+        _captureFrame = CheckCaptureFrame();
 
-        if(holdFrame)
+        if(_holdFrame)
         {
-            Debug.Log("bruh");
             // (Re-)Initializes reference frames and motion vector history
             InitializeReferenceFrame(sheet, context);
             // Display current source image
@@ -260,14 +282,81 @@ sealed class ReprojectionRenderer : PostProcessEffectRenderer<Reprojection>
         // Set camera matrices for "current" frame
         setCameraMatrices(false, sheet, context);
 
-        // Apply and display reprojection by currently selected reprojection mode
+        if(_previousCaptureFrame == 1)
+        {
+            if(context.camera.tag == "Untagged")
+            {
+                var test = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+        
+                Texture2D texture2D = new Texture2D(context.width, context.height, TextureFormat.ARGB32, false, true);
+
+                RenderTexture currentRT = RenderTexture.active;
+                RenderTexture.active = test;
+
+                // Apply and display reprojection by currently selected reprojection mode
+                context.command.BlitFullscreenTriangle(context.source, test, sheet, (int) ShaderPassId.Timewarp);
+
+                texture2D.ReadPixels(new Rect(0, 0, test.width, test.height), 0, 0);
+                texture2D.Apply();
+
+                RenderTexture.active = currentRT;
+
+                Color[] pixels = texture2D.GetPixels();
+                for (int p = 0; p < pixels.Length; p++)
+                {
+                    pixels[p] = pixels[p].gamma;
+                }
+                texture2D.SetPixels(pixels);
+
+                texture2D.Apply();
+
+                Debug.Log("captured frame");
+
+                byte[] bytes = ImageConversion.EncodeToPNG(texture2D);
+                File.WriteAllBytes(Application.dataPath + "/../SavedScreen.png", bytes);
+
+                RenderTexture.ReleaseTemporary(test);
+            }
+        }
+
+        // var test = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBFloat);
+        
+        // Texture2D texture2D = new Texture2D(context.width, context.height, TextureFormat.RGBAFloat, false);
+
+        // RenderTexture currentRT = RenderTexture.active;
+        // RenderTexture.active = test;
+
+        // // Apply and display reprojection by currently selected reprojection mode
+        // context.command.BlitFullscreenTriangle(context.source, test, sheet, (int) ShaderPassId.Timewarp1);
+
+        // texture2D.ReadPixels(new Rect(0, 0, test.width, test.height), 0, 0);
+        // texture2D.Apply();
+
+        // RenderTexture.active = currentRT;
+
+        // if(context.camera.tag == "MainCamera")
+        // {
+        //     for (int y = 0; y < texture2D.height; y += 25)
+        //     {
+        //         for (int x = 0; x < texture2D.width; x += 25)
+        //         {
+        //             Color pixelColor = texture2D.GetPixel(x, y);
+        //             Debug.DrawRay(previousCameraPosition, new Vector3(pixelColor.r, pixelColor.g, pixelColor.b), Color.green);
+                    
+        //         }
+        //     }
+        // }
+
+        // RenderTexture.ReleaseTemporary(test);
+
         context.command.BlitFullscreenTriangle(context.source, context.destination, sheet, (int) ShaderPassId.Timewarp);
     }
 
     private void setCameraMatrices(bool previous, PropertySheet sheet, PostProcessRenderContext context)
     {
         if(previous)
-        {
+        {   
+            previousCameraPosition = context.camera.transform.position;
             sheet.properties.SetVector(ShaderIDs.PreviousCameraPosition, context.camera.transform.position);
             sheet.properties.SetMatrix(ShaderIDs.PreviousInvViewMatrix, context.camera.worldToCameraMatrix.inverse);
             sheet.properties.SetMatrix(ShaderIDs.PreviousInvProjectionMatrix, context.camera.projectionMatrix.inverse);

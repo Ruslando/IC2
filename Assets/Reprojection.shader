@@ -102,7 +102,73 @@ Shader "Hidden/Reprojection"
 
     half4 Timewarp(VaryingsDefault i) : SV_Target
     {
-        return SAMPLE_TEX2D(_PreviousMotionDepthTexture, i.texcoord);
+        float occlusionThreshold = 0.1f;
+
+        // sample world position from current camera 
+        float Depth = SAMPLE_DEPTH(_CameraDepthTexture, i.texcoord);
+        float3 WorldPosDirection = ScreenPosToWorldPosDirectionVectorByDepth(i.texcoord, Depth, _InvViewMatrix, _InvProjectionMatrix);
+        float3 WorldPos = _CameraPosition + WorldPosDirection;
+
+        // calculate screen pos for previous camera for sampled world position
+        float2 ScreenPosPreviousCamera = WorldPosToScreenPos(WorldPos, _PreviousProjectionViewMatrix);
+
+        // sample world position from previous camera using the calculate screen pos
+        float PreviousDepth = SAMPLE_TEX2D(_PreviousMotionDepthTexture, ScreenPosPreviousCamera).z;
+        float3 PreviousWorldPosDirection = ScreenPosToWorldPosDirectionVectorByDepth(ScreenPosPreviousCamera, PreviousDepth, _PreviousInvViewMatrix, _PreviousInvProjectionMatrix);
+        float3 PreviousWorldPos = _PreviousCameraPosition + PreviousWorldPosDirection;
+
+        // calculate the distance between sampled world positions
+        float Distance = distance(WorldPos, PreviousWorldPos);
+        // to determine a correspondence, the distance should be near 0
+        // calculate a 0/1 value if
+        float Correspondence = step(occlusionThreshold, abs(Distance));
+
+        return lerp(SAMPLE_TEX2D(_PreviousColorTexture, ScreenPosPreviousCamera), half4(0,0,0,1), Correspondence);
+        //return SAMPLE_TEX2D(_PreviousColorTexture, ScreenPosPreviousCamera);
+    }
+
+    float4 Timewarp1(VaryingsDefault i) : SV_Target
+    {
+        //float occlusionThreshold = 1.5f;
+
+        float Depth = SAMPLE_DEPTH(_CameraDepthTexture, i.texcoord);
+        float3 WorldPosDirection = ScreenPosToWorldPosDirectionVectorByDepth(i.texcoord, Depth, _InvViewMatrix, _InvProjectionMatrix);
+        float3 WorldPos = _CameraPosition + WorldPosDirection;
+
+        float2 ScreenPosPreviousCamera = WorldPosToScreenPos(WorldPos, _PreviousProjectionViewMatrix);
+        float PreviousDepth = SAMPLE_TEX2D(_PreviousMotionDepthTexture, ScreenPosPreviousCamera).z;
+        float3 PreviousWorldPosDirection = ScreenPosToWorldPosDirectionVectorByDepth(i.texcoord, PreviousDepth, _PreviousInvViewMatrix, _PreviousInvProjectionMatrix);
+        float3 PreviousWorldPos = _PreviousCameraPosition + PreviousWorldPosDirection;
+
+        return float4(PreviousWorldPosDirection, 1);
+
+        //float Distance = distance(WorldPos, PreviousWorldPos);
+        //float Occlusion = step(occlusionThreshold, abs(Distance));
+
+        //return lerp(SAMPLE_TEX2D(_PreviousColorTexture, ScreenPosPreviousCamera), half4(0,0,0,1), Occlusion);
+        //return SAMPLE_TEX2D(_PreviousColorTexture, ScreenPosPreviousCamera);
+    }
+
+    float4 Timewarp2(VaryingsDefault i) : SV_Target
+    {
+        //float occlusionThreshold = 1.5f;
+
+        float Depth = SAMPLE_DEPTH(_CameraDepthTexture, i.texcoord);
+        float3 WorldPosDirection = ScreenPosToWorldPosDirectionVectorByDepth(i.texcoord, Depth, _InvViewMatrix, _InvProjectionMatrix);
+        float3 WorldPos = _CameraPosition + WorldPosDirection;
+
+        float2 ScreenPosPreviousCamera = WorldPosToScreenPos(WorldPos, _PreviousProjectionViewMatrix);
+        float PreviousDepth = SAMPLE_TEX2D(_PreviousMotionDepthTexture, ScreenPosPreviousCamera).z;
+        float3 PreviousWorldPosDirection = ScreenPosToWorldPosDirectionVectorByDepth(i.texcoord, PreviousDepth, _PreviousInvViewMatrix, _PreviousInvProjectionMatrix);
+        float3 PreviousWorldPos = _PreviousCameraPosition + PreviousWorldPosDirection;
+
+        return float4(PreviousWorldPosDirection, 1);
+
+        //float Distance = distance(WorldPos, PreviousWorldPos);
+        //float Occlusion = step(occlusionThreshold, abs(Distance));
+
+        //return lerp(SAMPLE_TEX2D(_PreviousColorTexture, ScreenPosPreviousCamera), half4(0,0,0,1), Occlusion);
+        //return SAMPLE_TEX2D(_PreviousColorTexture, ScreenPosPreviousCamera);
     }
 
     half4 Display(VaryingsDefault i) : SV_Target
@@ -193,6 +259,20 @@ Shader "Hidden/Reprojection"
             HLSLPROGRAM
             #pragma vertex VertDefault
             #pragma fragment Timewarp
+            ENDHLSL
+        }
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex VertDefault
+            #pragma fragment Timewarp1
+            ENDHLSL
+        }
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex VertDefault
+            #pragma fragment Timewarp2
             ENDHLSL
         }
         Pass
