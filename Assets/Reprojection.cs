@@ -2,6 +2,7 @@ using UnityEngine;
 using System.IO;
 //using UnityEngine.Rendering;
 using UnityEngine.Rendering.PostProcessing;
+using System.Collections;
 
 #region Effect settings
 
@@ -46,6 +47,10 @@ sealed class ReprojectionRenderer : PostProcessEffectRenderer<Reprojection>
         Timewarp1,
         Timewarp2,
         Display,
+        Depth,
+        DiffuseOcclusion,
+        SpecularColorSmoothness,
+        WorldSpaceNormal
     }
 
     RenderTexture _previousColorTexture;
@@ -282,40 +287,25 @@ sealed class ReprojectionRenderer : PostProcessEffectRenderer<Reprojection>
         // Set camera matrices for "current" frame
         setCameraMatrices(false, sheet, context);
 
+        // if "capture frame" has been activated in post process settings
         if(_previousCaptureFrame == 1)
         {
+            // captures only scene camera
             if(context.camera.tag == "Untagged")
             {
-                var test = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
-        
-                Texture2D texture2D = new Texture2D(context.width, context.height, TextureFormat.ARGB32, false, true);
+                RenderTexture timewarpRT = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+                RenderTexture depthRT = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+                RenderTexture diffuseRT = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+                RenderTexture specularRT = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+                RenderTexture normalRT = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
+                RenderTexture displayRT = RenderTexture.GetTemporary(context.width, context.height, 0, RenderTextureFormat.ARGBHalf);
 
-                RenderTexture currentRT = RenderTexture.active;
-                RenderTexture.active = test;
-
-                // Apply and display reprojection by currently selected reprojection mode
-                context.command.BlitFullscreenTriangle(context.source, test, sheet, (int) ShaderPassId.Timewarp);
-
-                texture2D.ReadPixels(new Rect(0, 0, test.width, test.height), 0, 0);
-                texture2D.Apply();
-
-                RenderTexture.active = currentRT;
-
-                Color[] pixels = texture2D.GetPixels();
-                for (int p = 0; p < pixels.Length; p++)
-                {
-                    pixels[p] = pixels[p].gamma;
-                }
-                texture2D.SetPixels(pixels);
-
-                texture2D.Apply();
-
-                Debug.Log("captured frame");
-
-                byte[] bytes = ImageConversion.EncodeToPNG(texture2D);
-                File.WriteAllBytes(Application.dataPath + "/../SavedScreen.png", bytes);
-
-                RenderTexture.ReleaseTemporary(test);
+                CaptureFrame(timewarpRT, ShaderPassId.Timewarp, "Timewarp", sheet, context);
+                CaptureFrame(depthRT, ShaderPassId.Depth, "Depth", sheet, context);
+                CaptureFrame(diffuseRT, ShaderPassId.DiffuseOcclusion, "Diffuse", sheet, context);
+                CaptureFrame(specularRT, ShaderPassId.SpecularColorSmoothness, "Specular", sheet, context);
+                CaptureFrame(normalRT, ShaderPassId.WorldSpaceNormal, "Normal", sheet, context);
+                CaptureFrame(displayRT, ShaderPassId.Display, "Display", sheet, context);
             }
         }
 
@@ -350,6 +340,40 @@ sealed class ReprojectionRenderer : PostProcessEffectRenderer<Reprojection>
         // RenderTexture.ReleaseTemporary(test);
 
         context.command.BlitFullscreenTriangle(context.source, context.destination, sheet, (int) ShaderPassId.Timewarp);
+    }
+
+    private void CaptureFrame(RenderTexture temp, ShaderPassId shaderPassId, string filename, PropertySheet sheet, PostProcessRenderContext context)
+    {
+        // cache active render texture
+        RenderTexture currentRT = RenderTexture.active;
+        // set temporary render texture as active
+        RenderTexture.active = temp;
+        // apply shader 
+        context.command.BlitFullscreenTriangle(context.source, temp, sheet, (int) shaderPassId);
+
+        // generate texture2d and read pixels of active render texture
+        Texture2D texture2D = new Texture2D(context.width, context.height, TextureFormat.ARGB32, false, true);
+        texture2D.ReadPixels(new Rect(0, 0, temp.width, temp.height), 0, 0);
+        texture2D.Apply();
+
+        // set active render texture back to previous render texture
+        RenderTexture.active = currentRT;
+
+        // apply gamma correction
+        Color[] pixels = texture2D.GetPixels();
+        for (int p = 0; p < pixels.Length; p++)
+        {
+            pixels[p] = pixels[p].gamma;
+        }
+        texture2D.SetPixels(pixels);
+        texture2D.Apply();
+
+        // encode pixel values to png and save
+        byte[] bytes = ImageConversion.EncodeToPNG(texture2D);
+        File.WriteAllBytes(Application.dataPath + "/../" + filename + ".png", bytes);
+
+        // free temporary render texture
+        RenderTexture.ReleaseTemporary(temp);
     }
 
     private void setCameraMatrices(bool previous, PropertySheet sheet, PostProcessRenderContext context)

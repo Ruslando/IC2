@@ -8,6 +8,10 @@ Shader "Hidden/Reprojection"
     #define SAMPLE_TEX2D(name, uv) SAMPLE_TEXTURE2D(name, sampler##name, uv)
     #define SAMPLE_DEPTH(name, uv) SAMPLE_DEPTH_TEXTURE(name, sampler##name, uv).x
 
+    TEXTURE2D_SAMPLER2D(_CameraGBufferTexture0, sampler_CameraGBufferTexture0);
+    TEXTURE2D_SAMPLER2D(_CameraGBufferTexture1, sampler_CameraGBufferTexture1);
+    TEXTURE2D_SAMPLER2D(_CameraGBufferTexture2, sampler_CameraGBufferTexture2);
+
     TEXTURE2D_SAMPLER2D(_MainTex, sampler_MainTex);
     TEXTURE2D_SAMPLER2D(_CameraDepthTexture, sampler_CameraDepthTexture);
     TEXTURE2D_SAMPLER2D(_CameraMotionVectorsTexture, sampler_CameraMotionVectorsTexture);
@@ -176,6 +180,29 @@ Shader "Hidden/Reprojection"
         return SAMPLE_TEX2D(_MainTex, i.texcoord);
     }
 
+    half4 Depth(VaryingsDefault i) : SV_Target
+    {
+        return SAMPLE_DEPTH(_CameraDepthTexture, i.texcoord);
+    }
+
+    float4 DiffuseOcclusion(VaryingsDefault i) : SV_Target
+    {
+        // Diffuse color (RGB), occlusion (A)
+        return SAMPLE_TEX2D(_CameraGBufferTexture0, i.texcoord);
+    }
+
+    float4 SpecularColorSmoothness(VaryingsDefault i) : SV_Target
+    {
+        // Specular color (RGB), smoothness (A).
+        return SAMPLE_TEX2D(_CameraGBufferTexture1, i.texcoord);
+    }
+
+    float4 WorldSpaceNormal(VaryingsDefault i) : SV_Target
+    {
+        // Specular color (RGB), smoothness (A).
+        return half4(SAMPLE_TEX2D(_CameraGBufferTexture2, i.texcoord).rgb, 1);
+    }
+
     /** 
         Fragment shader pass for positional timewarp (backward evaluation)
         Reprojects a target color texture to a new camera/view plane, by ray marching through the z-buffer of the target texture
@@ -280,6 +307,34 @@ Shader "Hidden/Reprojection"
             HLSLPROGRAM
             #pragma vertex VertDefault
             #pragma fragment Display
+            ENDHLSL
+        }
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex VertDefault
+            #pragma fragment Depth
+            ENDHLSL
+        }
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex VertDefault
+            #pragma fragment DiffuseOcclusion
+            ENDHLSL
+        }
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex VertDefault
+            #pragma fragment SpecularColorSmoothness
+            ENDHLSL
+        }
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex VertDefault
+            #pragma fragment WorldSpaceNormal
             ENDHLSL
         }
     }
